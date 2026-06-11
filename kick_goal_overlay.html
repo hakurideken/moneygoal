@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goal Overlay</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: transparent;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .overlay {
+    width: 500px;
+    background: rgba(10, 10, 20, 0.82);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 16px 20px 14px;
+    backdrop-filter: blur(10px);
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+
+  .goal-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.02em;
+  }
+
+  .amounts {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .amounts strong {
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .bar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+    height: 20px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    position: relative;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2dd4a0, #4a9fff);
+    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+    min-width: 0px;
+  }
+
+  .bar-pct {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    white-space: nowrap;
+  }
+
+  .stats {
+    display: flex;
+    gap: 10px;
+  }
+
+  .stat {
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 7px 10px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 3px;
+  }
+
+  .stat-value {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .stat-value.subs  { color: #2dd4a0; }
+  .stat-value.tips  { color: #4a9fff; }
+  .stat-value.left  { color: rgba(255,255,255,0.7); }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #f87171;
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+    transition: background 0.3s;
+  }
+  .status-dot.connected { background: #2dd4a0; }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+
+  .status-text {
+    font-size: 10px;
+    color: rgba(255,255,255,0.35);
+  }
+
+  /* Animace nového eventu */
+  @keyframes flash {
+    0%   { box-shadow: 0 0 0px rgba(255,255,255,0); }
+    30%  { box-shadow: 0 0 18px rgba(77,180,255,0.5); }
+    100% { box-shadow: 0 0 0px rgba(255,255,255,0); }
+  }
+  .overlay.flash {
+    animation: flash 1.2s ease-out;
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay" id="overlay">
+  <div class="status-bar">
+    <span class="status-dot" id="dot"></span>
+    <span class="status-text" id="status-text">Připojuji...</span>
+  </div>
+  <div class="header">
+    <span class="goal-name" id="goal-name">🏍️ Motorka — cíl</span>
+    <span class="amounts"><strong id="current">0</strong> / <span id="goal-max">165 000</span> Kč</span>
+  </div>
+  <div class="bar-track">
+    <div class="bar-fill" id="bar" style="width:0%">
+      <span class="bar-pct" id="bar-pct"></span>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Suby</div>
+      <div class="stat-value subs" id="stat-subs">0 subů</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Donace</div>
+      <div class="stat-value tips" id="stat-tips">0 Kč</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Zbývá</div>
+      <div class="stat-value left" id="stat-left">165 000 Kč</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  NASTAVENÍ — upravte tyto hodnoty
+// ============================================================
+const JWT_TOKEN   = "ZDE_VLOZ_SVUJ_JWT_TOKEN";   // z SE dashboardu → Account → Channels → Show secrets
+const ACCOUNT_ID  = "ZDE_VLOZ_SVUJ_ACCOUNT_ID";  // stejné místo
+
+const GOAL        = 165000;   // cílová částka v Kč (před zdaněním)
+const SUB_VALUE   = 130;      // kolik Kč = 1 sub (upravte dle svého tarifu)
+const GOAL_NAME   = "🏍️ Motorka — cíl";
+// ============================================================
+
+let totalSubs = 0;
+let totalTips = 0;
+
+function fmt(n) {
+  return Math.round(n).toLocaleString('cs-CZ');
+}
+
+function updateUI() {
+  const subKc   = totalSubs * SUB_VALUE;
+  const total   = subKc + totalTips;
+  const pct     = Math.min(100, Math.round((total / GOAL) * 100));
+  const left    = Math.max(0, GOAL - total);
+
+  document.getElementById('current').textContent    = fmt(total);
+  document.getElementById('goal-max').textContent   = fmt(GOAL);
+  document.getElementById('bar').style.width        = pct + '%';
+  document.getElementById('bar-pct').textContent    = pct > 6 ? pct + '%' : '';
+  document.getElementById('stat-subs').textContent  = totalSubs + ' subů (' + fmt(subKc) + ' Kč)';
+  document.getElementById('stat-tips').textContent  = fmt(totalTips) + ' Kč';
+  document.getElementById('stat-left').textContent  = fmt(left) + ' Kč';
+  document.getElementById('goal-name').textContent  = GOAL_NAME;
+
+  // Bliknutí overlaye při novém eventu
+  const overlay = document.getElementById('overlay');
+  overlay.classList.remove('flash');
+  void overlay.offsetWidth;
+  overlay.classList.add('flash');
+}
+
+function setStatus(connected, text) {
+  document.getElementById('dot').className        = 'status-dot' + (connected ? ' connected' : '');
+  document.getElementById('status-text').textContent = text;
+}
+
+// ---- WebSocket připojení na StreamElements ----
+const socket = io('https://realtime.streamelements.com', {
+  transports: ['websocket']
+});
+
+socket.on('connect', () => {
+  setStatus(false, 'Autentizuji...');
+  socket.emit('authenticate', {
+    method: 'jwt',
+    token: JWT_TOKEN
+  });
+});
+
+socket.on('authenticated', () => {
+  setStatus(true, 'Připojeno ✓');
+});
+
+socket.on('unauthorized', (err) => {
+  setStatus(false, 'Chyba tokenu!');
+  console.error('SE auth error:', err);
+});
+
+socket.on('disconnect', () => {
+  setStatus(false, 'Odpojeno — reconnectuji...');
+});
+
+socket.on('event', (data) => {
+  const type = data.type;
+
+  if (type === 'tip') {
+    // Donace — data.data.amount je v měně nastavené v SE (nastavte CZK v SE!)
+    const amount = parseFloat(data.data.amount) || 0;
+    totalTips += amount;
+    updateUI();
+    console.log('Tip:', amount, 'Kč od', data.data.username);
+  }
+
+  if (type === 'subscriber' || type === 'resub' || type === 'giftsub' || type === 'communityGiftPurchase') {
+    // Sub, resub, giftsub
+    const count = data.data.amount || 1; // giftsub může být víc najednou
+    totalSubs += count;
+    updateUI();
+    console.log('Sub x' + count + ' od', data.data.username);
+  }
+});
+
+// Test event (SE posílá při kliknutí na "Test" v dashboardu)
+socket.on('event:test', (data) => {
+  console.log('Test event:', data);
+});
+
+// Init
+updateUI();
+</script>
+
+</body>
+</html>
