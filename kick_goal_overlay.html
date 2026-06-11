@@ -82,6 +82,7 @@
   .stats {
     display: flex;
     gap: 10px;
+    margin-bottom: 10px;
   }
 
   .stat {
@@ -108,6 +109,33 @@
   .stat-value.tips  { color: #4a9fff; }
   .stat-value.left  { color: rgba(255,255,255,0.7); }
 
+  .deadline-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    padding: 7px 10px;
+  }
+
+  .deadline-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .deadline-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.75);
+  }
+
+  .deadline-value.urgent   { color: #f87171; }
+  .deadline-value.warning  { color: #fbbf24; }
+  .deadline-value.ok       { color: #2dd4a0; }
+  .deadline-value.done     { color: #a78bfa; }
+
   .status-dot {
     width: 7px;
     height: 7px;
@@ -132,7 +160,6 @@
     color: rgba(255,255,255,0.35);
   }
 
-  /* Animace nového eventu */
   @keyframes flash {
     0%   { box-shadow: 0 0 0px rgba(255,255,255,0); }
     30%  { box-shadow: 0 0 18px rgba(77,180,255,0.5); }
@@ -173,6 +200,10 @@
       <div class="stat-value left" id="stat-left">165 000 Kč</div>
     </div>
   </div>
+  <div class="deadline-bar" id="deadline-bar">
+    <span class="deadline-label">⏳ Deadline</span>
+    <span class="deadline-value ok" id="deadline-value">—</span>
+  </div>
 </div>
 
 <script>
@@ -182,9 +213,12 @@
 const JWT_TOKEN   = "ZDE_VLOZ_SVUJ_JWT_TOKEN";   // z SE dashboardu → Account → Channels → Show secrets
 const ACCOUNT_ID  = "ZDE_VLOZ_SVUJ_ACCOUNT_ID";  // stejné místo
 
-const GOAL        = 165000;   // cílová částka v Kč (před zdaněním)
-const SUB_VALUE   = 130;      // kolik Kč = 1 sub (upravte dle svého tarifu)
+const GOAL        = 165000;         // cílová částka v Kč
+const SUB_VALUE   = 130;            // kolik Kč = 1 sub (upravte dle svého tarifu)
 const GOAL_NAME   = "🏍️ Motorka — cíl";
+
+// Datum deadline ve formátu "YYYY-MM-DD", nebo null pokud nechcete zobrazovat
+const DEADLINE    = "2026-12-31";
 // ============================================================
 
 let totalSubs = 0;
@@ -194,7 +228,48 @@ function fmt(n) {
   return Math.round(n).toLocaleString('cs-CZ');
 }
 
-function updateUI() {
+function updateDeadline() {
+  const el = document.getElementById('deadline-value');
+  const bar = document.getElementById('deadline-bar');
+
+  if (!DEADLINE) {
+    bar.style.display = 'none';
+    return;
+  }
+
+  const now      = new Date();
+  const target   = new Date(DEADLINE + 'T23:59:59');
+  const diffMs   = target - now;
+
+  if (diffMs <= 0) {
+    el.textContent  = 'Deadline vypršel!';
+    el.className    = 'deadline-value urgent';
+    return;
+  }
+
+  const days    = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const hours   = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+  if (days > 0) {
+    el.textContent = days + ' d ' + hours + ' h ' + minutes + ' min';
+  } else if (hours > 0) {
+    el.textContent = hours + ' h ' + minutes + ' min ' + seconds + ' s';
+  } else {
+    el.textContent = minutes + ' min ' + seconds + ' s';
+  }
+
+  if (days <= 3) {
+    el.className = 'deadline-value urgent';
+  } else if (days <= 14) {
+    el.className = 'deadline-value warning';
+  } else {
+    el.className = 'deadline-value ok';
+  }
+}
+
+function updateUI(flash) {
   const subKc   = totalSubs * SUB_VALUE;
   const total   = subKc + totalTips;
   const pct     = Math.min(100, Math.round((total / GOAL) * 100));
@@ -209,17 +284,22 @@ function updateUI() {
   document.getElementById('stat-left').textContent  = fmt(left) + ' Kč';
   document.getElementById('goal-name').textContent  = GOAL_NAME;
 
-  // Bliknutí overlaye při novém eventu
-  const overlay = document.getElementById('overlay');
-  overlay.classList.remove('flash');
-  void overlay.offsetWidth;
-  overlay.classList.add('flash');
+  if (flash) {
+    const overlay = document.getElementById('overlay');
+    overlay.classList.remove('flash');
+    void overlay.offsetWidth;
+    overlay.classList.add('flash');
+  }
 }
 
 function setStatus(connected, text) {
-  document.getElementById('dot').className        = 'status-dot' + (connected ? ' connected' : '');
+  document.getElementById('dot').className           = 'status-dot' + (connected ? ' connected' : '');
   document.getElementById('status-text').textContent = text;
 }
+
+// Deadline ticker — aktualizuje se každou sekundu
+updateDeadline();
+setInterval(updateDeadline, 1000);
 
 // ---- WebSocket připojení na StreamElements ----
 const socket = io('https://realtime.streamelements.com', {
@@ -228,10 +308,7 @@ const socket = io('https://realtime.streamelements.com', {
 
 socket.on('connect', () => {
   setStatus(false, 'Autentizuji...');
-  socket.emit('authenticate', {
-    method: 'jwt',
-    token: JWT_TOKEN
-  });
+  socket.emit('authenticate', { method: 'jwt', token: JWT_TOKEN });
 });
 
 socket.on('authenticated', () => {
@@ -251,29 +328,26 @@ socket.on('event', (data) => {
   const type = data.type;
 
   if (type === 'tip') {
-    // Donace — data.data.amount je v měně nastavené v SE (nastavte CZK v SE!)
     const amount = parseFloat(data.data.amount) || 0;
     totalTips += amount;
-    updateUI();
+    updateUI(true);
     console.log('Tip:', amount, 'Kč od', data.data.username);
   }
 
   if (type === 'subscriber' || type === 'resub' || type === 'giftsub' || type === 'communityGiftPurchase') {
-    // Sub, resub, giftsub
-    const count = data.data.amount || 1; // giftsub může být víc najednou
+    const count = data.data.amount || 1;
     totalSubs += count;
-    updateUI();
+    updateUI(true);
     console.log('Sub x' + count + ' od', data.data.username);
   }
 });
 
-// Test event (SE posílá při kliknutí na "Test" v dashboardu)
 socket.on('event:test', (data) => {
   console.log('Test event:', data);
 });
 
 // Init
-updateUI();
+updateUI(false);
 </script>
 
 </body>
