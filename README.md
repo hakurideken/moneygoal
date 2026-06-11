@@ -128,3 +128,23 @@ Overlay automaticky zachytává tyto eventy ze StreamElements:
 ## Licence
 
 MIT — použij, uprav, sdílej jak chceš.
+
+---
+
+## Zabezpečení
+
+Overlay běží jako **lokální soubor v OBS** na tvém počítači — diváci k němu nemají žádný přístup a nemohou ho nijak ovlivnit. Jediné reálné riziko je únik JWT tokenu.
+
+**Co se stane při úniku JWT tokenu:**
+- útočník může posílat falešné tipy přes SE API a nafukovat počítadlo
+- má přístup ke správě tvého SE účtu (alerty, bot příkazy atd.)
+
+**Jak token ochránit:**
+
+❌ **Nikdy nesdílej HTML soubor s vyplněným tokenem** — ani kamarádům, ani na Discord, ani na GitHub. Token je v souboru viditelný jako prostý text.
+
+✅ **Před sdílením souboru token vždy vymaž** a nahraď ho zpět placeholderem `ZDE_VLOZ_SVUJ_JWT_TOKEN`.
+
+✅ **Pokud token unikl**, okamžitě ho zneplatn: StreamElements dashboard → Account → Channels → **Regenerate token**. Starý token přestane fungovat ihned.
+
+✅ **Token má platnost ~180 dní** a pak expiruje sám — po expiraci se overlay zobrazí jako "Chyba tokenu!" a stačí vložit nový.
