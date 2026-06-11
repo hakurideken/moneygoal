@@ -57,7 +57,10 @@ Ve stejné sekci uprav tyto hodnoty:
 const GOAL      = 165000;        // cílová částka v Kč
 const SUB_VALUE = 130;           // hodnota 1 suba v Kč (dle tvého tarifu na Kicku)
 const GOAL_NAME = "🏍️ Motorka"; // název cíle zobrazený v overlaye
+const DEADLINE  = "2026-12-31";  // datum deadline ve formátu YYYY-MM-DD, nebo null pro skrytí
 ```
+
+Deadline se zobrazí jako odpočítávání v reálném čase a mění barvu podle naléhavosti — zelená (více než 14 dní), oranžová (do 14 dní), červená (do 3 dnů).
 
 ### 5. Nastav měnu v StreamElements na CZK
 
@@ -82,6 +85,7 @@ Aby donace přicházely ve správné měně:
 | `GOAL` | `165000` | Cílová částka v Kč |
 | `SUB_VALUE` | `130` | Hodnota 1 suba v Kč |
 | `GOAL_NAME` | `🏍️ Motorka — cíl` | Název zobrazený v overlaye |
+| `DEADLINE` | `"2026-12-31"` | Datum deadline ve formátu `YYYY-MM-DD`, nebo `null` pro skrytí |
 | `JWT_TOKEN` | *(vyplň)* | JWT token z SE dashboardu |
 | `ACCOUNT_ID` | *(vyplň)* | Account ID z SE dashboardu |
 
