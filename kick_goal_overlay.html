@@ -46,10 +46,7 @@
     color: rgba(255,255,255,0.5);
   }
 
-  .amounts strong {
-    color: #fff;
-    font-weight: 600;
-  }
+  .amounts strong { color: #fff; font-weight: 600; }
 
   .bar-track {
     background: rgba(255,255,255,0.1);
@@ -100,16 +97,19 @@
     margin-bottom: 3px;
   }
 
-  .stat-value {
-    font-size: 14px;
-    font-weight: 600;
+  .stat-value { font-size: 14px; font-weight: 600; }
+  .stat-value.subs { color: #2dd4a0; }
+  .stat-value.tips { color: #4a9fff; }
+  .stat-value.left { color: rgba(255,255,255,0.7); }
+
+  .bottom-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
   }
 
-  .stat-value.subs  { color: #2dd4a0; }
-  .stat-value.tips  { color: #4a9fff; }
-  .stat-value.left  { color: rgba(255,255,255,0.7); }
-
   .deadline-bar {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -125,20 +125,29 @@
     letter-spacing: 0.06em;
   }
 
-  .deadline-value {
-    font-size: 13px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.75);
-  }
+  .deadline-value { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75); }
+  .deadline-value.urgent  { color: #f87171; }
+  .deadline-value.warning { color: #fbbf24; }
+  .deadline-value.ok      { color: #2dd4a0; }
 
-  .deadline-value.urgent   { color: #f87171; }
-  .deadline-value.warning  { color: #fbbf24; }
-  .deadline-value.ok       { color: #2dd4a0; }
-  .deadline-value.done     { color: #a78bfa; }
+  .reset-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 7px 12px;
+    color: rgba(255,255,255,0.35);
+    font-size: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+  .reset-btn:hover { background: rgba(248,113,113,0.15); color: #f87171; border-color: rgba(248,113,113,0.3); }
 
   .status-dot {
-    width: 7px;
-    height: 7px;
+    width: 7px; height: 7px;
     border-radius: 50%;
     background: #f87171;
     display: inline-block;
@@ -151,31 +160,31 @@
   .status-bar {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     margin-bottom: 8px;
   }
 
-  .status-text {
-    font-size: 10px;
-    color: rgba(255,255,255,0.35);
-  }
+  .status-text { font-size: 10px; color: rgba(255,255,255,0.35); }
+  .saved-badge { font-size: 10px; color: rgba(45,212,160,0.6); opacity: 0; transition: opacity 0.5s; }
+  .saved-badge.show { opacity: 1; }
 
   @keyframes flash {
     0%   { box-shadow: 0 0 0px rgba(255,255,255,0); }
     30%  { box-shadow: 0 0 18px rgba(77,180,255,0.5); }
     100% { box-shadow: 0 0 0px rgba(255,255,255,0); }
   }
-  .overlay.flash {
-    animation: flash 1.2s ease-out;
-  }
+  .overlay.flash { animation: flash 1.2s ease-out; }
 </style>
 </head>
 <body>
 
 <div class="overlay" id="overlay">
   <div class="status-bar">
-    <span class="status-dot" id="dot"></span>
-    <span class="status-text" id="status-text">Připojuji...</span>
+    <div>
+      <span class="status-dot" id="dot"></span>
+      <span class="status-text" id="status-text">Připojuji...</span>
+    </div>
+    <span class="saved-badge" id="saved-badge">💾 uloženo</span>
   </div>
   <div class="header">
     <span class="goal-name" id="goal-name">🏍️ Motorka — cíl</span>
@@ -200,9 +209,12 @@
       <div class="stat-value left" id="stat-left">165 000 Kč</div>
     </div>
   </div>
-  <div class="deadline-bar" id="deadline-bar">
-    <span class="deadline-label">⏳ Deadline</span>
-    <span class="deadline-value ok" id="deadline-value">—</span>
+  <div class="bottom-row">
+    <div class="deadline-bar" id="deadline-bar">
+      <span class="deadline-label">⏳ Deadline</span>
+      <span class="deadline-value ok" id="deadline-value">—</span>
+    </div>
+    <button class="reset-btn" id="reset-btn" onclick="resetConfirm()">Reset</button>
   </div>
 </div>
 
@@ -210,79 +222,108 @@
 // ============================================================
 //  NASTAVENÍ — upravte tyto hodnoty
 // ============================================================
-const JWT_TOKEN   = "ZDE_VLOZ_SVUJ_JWT_TOKEN";   // z SE dashboardu → Account → Channels → Show secrets
-const ACCOUNT_ID  = "ZDE_VLOZ_SVUJ_ACCOUNT_ID";  // stejné místo
+const JWT_TOKEN  = "ZDE_VLOZ_SVUJ_JWT_TOKEN";
+const ACCOUNT_ID = "ZDE_VLOZ_SVUJ_ACCOUNT_ID";
 
-const GOAL        = 165000;         // cílová částka v Kč
-const SUB_VALUE   = 130;            // kolik Kč = 1 sub (upravte dle svého tarifu)
-const GOAL_NAME   = "🏍️ Motorka — cíl";
+const GOAL       = 165000;
+const SUB_VALUE  = 130;
+const GOAL_NAME  = "🏍️ Motorka — cíl";
+const DEADLINE   = "2026-12-31";   // formát YYYY-MM-DD, nebo null pro skrytí
 
-// Datum deadline ve formátu "YYYY-MM-DD", nebo null pokud nechcete zobrazovat
-const DEADLINE    = "2026-12-31";
+// Klíč pro localStorage — změňte pokud chcete mít víc nezávislých cílů
+const STORAGE_KEY = "moneygoal_v1";
 // ============================================================
 
-let totalSubs = 0;
-let totalTips = 0;
+// --- Načti uložený stav, nebo začni od nuly ---
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      return { subs: s.subs || 0, tips: s.tips || 0 };
+    }
+  } catch(e) {}
+  return { subs: 0, tips: 0 };
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ subs: totalSubs, tips: totalTips }));
+    // Zobraz "uloženo" badge na 2 sekundy
+    const badge = document.getElementById('saved-badge');
+    badge.classList.add('show');
+    setTimeout(() => badge.classList.remove('show'), 2000);
+  } catch(e) {}
+}
+
+const initial = loadState();
+let totalSubs  = initial.subs;
+let totalTips  = initial.tips;
+
+// --- Reset s potvrzením ---
+function resetConfirm() {
+  const btn = document.getElementById('reset-btn');
+  if (btn.dataset.confirm === '1') {
+    totalSubs = 0;
+    totalTips = 0;
+    saveState();
+    updateUI(false);
+    btn.textContent = 'Reset';
+    btn.dataset.confirm = '0';
+  } else {
+    btn.textContent = 'Opravdu?';
+    btn.dataset.confirm = '1';
+    setTimeout(() => {
+      btn.textContent = 'Reset';
+      btn.dataset.confirm = '0';
+    }, 3000);
+  }
+}
 
 function fmt(n) {
   return Math.round(n).toLocaleString('cs-CZ');
 }
 
 function updateDeadline() {
-  const el = document.getElementById('deadline-value');
+  const el  = document.getElementById('deadline-value');
   const bar = document.getElementById('deadline-bar');
+  if (!DEADLINE) { bar.style.display = 'none'; return; }
 
-  if (!DEADLINE) {
-    bar.style.display = 'none';
-    return;
-  }
-
-  const now      = new Date();
-  const target   = new Date(DEADLINE + 'T23:59:59');
-  const diffMs   = target - now;
-
+  const diffMs = new Date(DEADLINE + 'T23:59:59') - new Date();
   if (diffMs <= 0) {
-    el.textContent  = 'Deadline vypršel!';
-    el.className    = 'deadline-value urgent';
+    el.textContent = 'Deadline vypršel!';
+    el.className = 'deadline-value urgent';
     return;
   }
 
-  const days    = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const hours   = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+  const days    = Math.floor(diffMs / 86400000);
+  const hours   = Math.floor((diffMs % 86400000) / 3600000);
+  const minutes = Math.floor((diffMs % 3600000) / 60000);
+  const seconds = Math.floor((diffMs % 60000) / 1000);
 
-  if (days > 0) {
-    el.textContent = days + ' d ' + hours + ' h ' + minutes + ' min';
-  } else if (hours > 0) {
-    el.textContent = hours + ' h ' + minutes + ' min ' + seconds + ' s';
-  } else {
-    el.textContent = minutes + ' min ' + seconds + ' s';
-  }
+  el.textContent = days > 0
+    ? days + ' d ' + hours + ' h ' + minutes + ' min'
+    : hours > 0
+      ? hours + ' h ' + minutes + ' min ' + seconds + ' s'
+      : minutes + ' min ' + seconds + ' s';
 
-  if (days <= 3) {
-    el.className = 'deadline-value urgent';
-  } else if (days <= 14) {
-    el.className = 'deadline-value warning';
-  } else {
-    el.className = 'deadline-value ok';
-  }
+  el.className = 'deadline-value ' + (days <= 3 ? 'urgent' : days <= 14 ? 'warning' : 'ok');
 }
 
 function updateUI(flash) {
-  const subKc   = totalSubs * SUB_VALUE;
-  const total   = subKc + totalTips;
-  const pct     = Math.min(100, Math.round((total / GOAL) * 100));
-  const left    = Math.max(0, GOAL - total);
+  const subKc = totalSubs * SUB_VALUE;
+  const total = subKc + totalTips;
+  const pct   = Math.min(100, Math.round((total / GOAL) * 100));
+  const left  = Math.max(0, GOAL - total);
 
-  document.getElementById('current').textContent    = fmt(total);
-  document.getElementById('goal-max').textContent   = fmt(GOAL);
-  document.getElementById('bar').style.width        = pct + '%';
-  document.getElementById('bar-pct').textContent    = pct > 6 ? pct + '%' : '';
-  document.getElementById('stat-subs').textContent  = totalSubs + ' subů (' + fmt(subKc) + ' Kč)';
-  document.getElementById('stat-tips').textContent  = fmt(totalTips) + ' Kč';
-  document.getElementById('stat-left').textContent  = fmt(left) + ' Kč';
-  document.getElementById('goal-name').textContent  = GOAL_NAME;
+  document.getElementById('current').textContent   = fmt(total);
+  document.getElementById('goal-max').textContent  = fmt(GOAL);
+  document.getElementById('bar').style.width       = pct + '%';
+  document.getElementById('bar-pct').textContent   = pct > 6 ? pct + '%' : '';
+  document.getElementById('stat-subs').textContent = totalSubs + ' subů (' + fmt(subKc) + ' Kč)';
+  document.getElementById('stat-tips').textContent = fmt(totalTips) + ' Kč';
+  document.getElementById('stat-left').textContent = fmt(left) + ' Kč';
+  document.getElementById('goal-name').textContent = GOAL_NAME;
 
   if (flash) {
     const overlay = document.getElementById('overlay');
@@ -297,54 +338,35 @@ function setStatus(connected, text) {
   document.getElementById('status-text').textContent = text;
 }
 
-// Deadline ticker — aktualizuje se každou sekundu
 updateDeadline();
 setInterval(updateDeadline, 1000);
 
-// ---- WebSocket připojení na StreamElements ----
-const socket = io('https://realtime.streamelements.com', {
-  transports: ['websocket']
-});
+// ---- WebSocket ----
+const socket = io('https://realtime.streamelements.com', { transports: ['websocket'] });
 
 socket.on('connect', () => {
   setStatus(false, 'Autentizuji...');
   socket.emit('authenticate', { method: 'jwt', token: JWT_TOKEN });
 });
-
-socket.on('authenticated', () => {
-  setStatus(true, 'Připojeno ✓');
-});
-
-socket.on('unauthorized', (err) => {
-  setStatus(false, 'Chyba tokenu!');
-  console.error('SE auth error:', err);
-});
-
-socket.on('disconnect', () => {
-  setStatus(false, 'Odpojeno — reconnectuji...');
-});
+socket.on('authenticated', () => setStatus(true, 'Připojeno ✓'));
+socket.on('unauthorized',  () => setStatus(false, 'Chyba tokenu!'));
+socket.on('disconnect',    () => setStatus(false, 'Odpojeno — reconnectuji...'));
 
 socket.on('event', (data) => {
   const type = data.type;
-
   if (type === 'tip') {
-    const amount = parseFloat(data.data.amount) || 0;
-    totalTips += amount;
+    totalTips += parseFloat(data.data.amount) || 0;
+    saveState();
     updateUI(true);
-    console.log('Tip:', amount, 'Kč od', data.data.username);
   }
-
-  if (type === 'subscriber' || type === 'resub' || type === 'giftsub' || type === 'communityGiftPurchase') {
-    const count = data.data.amount || 1;
-    totalSubs += count;
+  if (['subscriber','resub','giftsub','communityGiftPurchase'].includes(type)) {
+    totalSubs += data.data.amount || 1;
+    saveState();
     updateUI(true);
-    console.log('Sub x' + count + ' od', data.data.username);
   }
 });
 
-socket.on('event:test', (data) => {
-  console.log('Test event:', data);
-});
+socket.on('event:test', (data) => console.log('Test event:', data));
 
 // Init
 updateUI(false);
