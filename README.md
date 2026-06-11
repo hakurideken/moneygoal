@@ -86,6 +86,7 @@ Aby donace přicházely ve správné měně:
 | `SUB_VALUE` | `130` | Hodnota 1 suba v Kč |
 | `GOAL_NAME` | `🏍️ Motorka — cíl` | Název zobrazený v overlaye |
 | `DEADLINE` | `"2026-12-31"` | Datum deadline ve formátu `YYYY-MM-DD`, nebo `null` pro skrytí |
+| `STORAGE_KEY` | `"moneygoal_v1"` | Klíč pro localStorage — změň pokud chceš mít víc nezávislých cílů vedle sebe |
 | `JWT_TOKEN` | *(vyplň)* | JWT token z SE dashboardu |
 | `ACCOUNT_ID` | *(vyplň)* | Account ID z SE dashboardu |
 
@@ -117,7 +118,10 @@ Overlay automaticky zachytává tyto eventy ze StreamElements:
 → Ujisti se, že máš Kick účet správně propojený v SE dashboardu pod správným kanálem.
 
 **Overlay po restartu OBS začíná od nuly**
-→ Overlay si nepamatuje historii mezi relacemi — hodnoty se resetují při každém načtení. Pro perzistentní součet si hodnoty zapiš ručně do `totalSubs` a `totalTips` přímo v kódu před spuštěním streamu.
+→ To by nemělo nastat — overlay ukládá stav do `localStorage` OBS Browser Source automaticky po každém subu/donaci. Pokud se přesto resetuje, zkontroluj že nemáš zaškrtnuté "Refresh cache when scene becomes active" v nastavení Browser Source.
+
+**Chci ručně resetovat na nulu**
+→ Klikni na tlačítko **Reset** v pravém dolním rohu overlaye — pro jistotu se zeptá dvakrát. Nebo v OBS klikni na Browser Source pravým tlačítkem → "Refresh cache".
 
 ---
 
